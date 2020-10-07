@@ -1,0 +1,21 @@
+{
+  "name": "arielallon/retscli",
+  "description": "A CLI for interacting with RETS servers",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Ariel Allon"
+    }
+  ],
+  "require": {
+    "php": "^7.2",
+    "neighborhoods/phrets": "^2.6.6",
+    "symfony/yaml": "^5.1",
+    "monolog/monolog": "^2.1",
+    "symfony/console": "^5.1"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-master"
+  }
+}
