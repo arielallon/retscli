@@ -19,6 +19,8 @@ class Query extends Command
 
     private const OPTION_RESOURCE = 'resource';
     private const OPTION_CLASS = 'class';
+    private const OPTION_OFFSET = 'offset';
+    private const OPTION_LIMIT = 'limit';
 
     protected static $defaultName = 'query';
 
@@ -63,6 +65,20 @@ class Query extends Command
                 'Specific class for this query. If not provided, will run against all in config file.',
                 null
                 )
+            ->addOption(
+                self::OPTION_OFFSET,
+                'o',
+                InputOption::VALUE_OPTIONAL,
+                'Starting offset for query.',
+                0
+            )
+            ->addOption(
+                self::OPTION_LIMIT,
+                'l',
+                InputOption::VALUE_OPTIONAL,
+                'Limit for query.',
+                100
+            )
         ;
     }
 
@@ -105,13 +121,21 @@ class Query extends Command
     {
         $this->getPhretsSession()->Login();
         foreach ($this->getResourcesAndClasses()['classes'] as $class) {
-            $results = $this->getPhretsSession()->Search(
-                $this->getResourcesAndClasses()['resource'],
-                $class,
-                $input->getArgument(self::ARGUMENT_QUERY),
-                [] // @todo
-            );
-            var_export($results);
+            do {
+                $results = $this->getPhretsSession()->Search(
+                    $this->getResourcesAndClasses()['resource'],
+                    $class,
+                    $input->getArgument(self::ARGUMENT_QUERY),
+                    [
+                        'Format' => 'COMPACT-DECODED',
+                        'Offset' => $input->getOption(self::OPTION_OFFSET),
+                        'Limit' => $input->getOption(self::OPTION_LIMIT),
+                        // @todo standardnames
+                    ]
+                );
+                var_export($results->toArray());
+            } while (count($results) > $input->getOption(self::OPTION_LIMIT));
+
         }
         $this->getPhretsSession()->Disconnect();
         return Command::SUCCESS;
