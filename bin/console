@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Symfony\Component\Console\Application;
+
+define('RETSCLI_ROOT_DIR', __DIR__ . '/../');
+
+$application = new Application();
+
+// @todo
+$application->add(new ArielAllon\RetsCli\Command\Query());
+
+$application->run();
