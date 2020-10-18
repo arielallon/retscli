@@ -21,6 +21,7 @@ class Query extends Command
     private const OPTION_CLASS = 'class';
     private const OPTION_OFFSET = 'offset';
     private const OPTION_LIMIT = 'limit';
+    private const OPTION_COUNT = 'count';
 
     protected static $defaultName = 'query';
 
@@ -79,6 +80,13 @@ class Query extends Command
                 'Limit for query.',
                 100
             )
+            ->addOption(
+                self::OPTION_COUNT,
+                'C',
+                InputOption::VALUE_OPTIONAL,
+                'Is this a count query',
+                false
+            )
         ;
     }
 
@@ -87,15 +95,7 @@ class Query extends Command
         $mlsConfigurationArray = (new Configuration\FromYaml())->getConfigurationByKey($input->getArgument(self::ARGUMENT_KEY));
 
         $sessionBuilder = new PHRETS\SessionBuilder(); // @todo move to Di
-        $sessionBuilder->setLoginUrl($mlsConfigurationArray['login_url'] ?? null);
-        $sessionBuilder->setUsername($mlsConfigurationArray['username'] ?? null);
-        $sessionBuilder->setPassword($mlsConfigurationArray['password'] ?? null);
-        $sessionBuilder->setUserAgent($mlsConfigurationArray['user_agent'] ?? null);
-        $sessionBuilder->setUserAgentPassword($mlsConfigurationArray['user_agent_password'] ?? null);
-        $sessionBuilder->setRetsVersion($mlsConfigurationArray['rets_version'] ?? null);
-        $sessionBuilder->setOptionUsePostMethod($mlsConfigurationArray['use_post_method'] ?? null);
-        $sessionBuilder->setOptionHttpAuthenticationMethod($mlsConfigurationArray['http_authentication_method'] ?? null);
-        $phretsSession = $sessionBuilder->build();
+        $phretsSession = $sessionBuilder->fromConfigurationArray($mlsConfigurationArray);
         $this->setPhretsSession($phretsSession);
 
         $this->setResourceAlias($input->getArgument(self::ARGUMENT_RESOURCE_ALIAS));

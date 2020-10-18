@@ -55,6 +55,19 @@ class SessionBuilder implements SessionBuilderInterface
         return new \PHRETS\Session($phretsConfiguration);
     }
 
+    public function fromConfigurationArray(array $cofigurationArray) : \PHRETS\Session
+    {
+        $this->setLoginUrl($cofigurationArray['login_url'] ?? null);
+        $this->setUsername($cofigurationArray['username'] ?? null);
+        $this->setPassword($cofigurationArray['password'] ?? null);
+        $this->setUserAgent($cofigurationArray['user_agent'] ?? null);
+        $this->setUserAgentPassword($cofigurationArray['user_agent_password'] ?? null);
+        $this->setRetsVersion($cofigurationArray['rets_version'] ?? null);
+        $this->setOptionUsePostMethod($cofigurationArray['use_post_method'] ?? null);
+        $this->setOptionHttpAuthenticationMethod($cofigurationArray['http_authentication_method'] ?? null);
+        return $this->build();
+    }
+
     private function getLoginUrl(): string
     {
         if ($this->login_url === null) {
