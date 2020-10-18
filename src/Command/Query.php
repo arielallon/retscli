@@ -136,12 +136,15 @@ class Query extends Command
         foreach ($this->getResourcesAndClasses()['classes'] as $class) {
             $output->writeln('Resource: ' . $this->getResourcesAndClasses()['resource']);
             $output->writeln('Class: ' . $class);
+            $offset = null;
             do {
+                $extras = $this->getQueryExtras($input, $offset);
+
                 $results = $this->getPhretsSession()->Search(
                     $this->getResourcesAndClasses()['resource'],
                     $class,
                     $input->getArgument(self::ARGUMENT_QUERY),
-                    $this->getQueryExtras($input)
+                    $extras
                 );
                 if ($input->getOption(self::OPTION_COUNT)) {
                     $output->writeln('Count: ' . $results->getTotalResultsCount());
@@ -149,7 +152,9 @@ class Query extends Command
                 } else {
                     $output->write(var_export($results->toArray(), true));
                 }
-            } while (count($results) > $input->getOption(self::OPTION_LIMIT));
+                $count = count($results);
+                $offset += $count;
+            } while ($count >= $input->getOption(self::OPTION_LIMIT));
             $output->writeln('');
         }
         $this->getPhretsSession()->Disconnect();
@@ -168,15 +173,15 @@ class Query extends Command
         return $this;
     }
 
-    private function getQueryExtras(InputInterface $input): array
+    private function getQueryExtras(InputInterface $input, ?int $offset): array
     {
         $extras = [
             'Format' => 'COMPACT-DECODED',
-            'Offset' => $input->getOption(self::OPTION_OFFSET),
             'Limit' => $input->getOption(self::OPTION_LIMIT),
             'Count' => $input->getOption(self::OPTION_COUNT) ? 2 : 1,
             'StandardNames' => $this->isStandardNames() ? 1 : 0,
         ];
+        $extras['Offset'] = is_null($offset) ? $input->getOption(self::OPTION_OFFSET) : $offset;
         if (!empty($input->getOption(self::OPTION_SELECT))) {
             $extras['Select'] = $input->getOption(self::OPTION_SELECT);
         }
