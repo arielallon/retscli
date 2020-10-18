@@ -16,4 +16,6 @@ interface SessionBuilderInterface
     public function setOptionHttpAuthenticationMethod(?string $option_http_authentication_method): SessionBuilderInterface;
 
     public function build() : \PHRETS\Session;
+
+    public function fromConfigurationArray(array $cofigurationArray) : \PHRETS\Session;
 }
