@@ -34,6 +34,9 @@ class Query extends Command
     /** @var array */
     private $resources_and_classes;
 
+    /** @var bool */
+    private $standard_names;
+
     protected function configure()
     {
         $this->setDescription('Send a Query to the RETS server')
@@ -84,7 +87,7 @@ class Query extends Command
                 self::OPTION_COUNT,
                 'C',
                 InputOption::VALUE_OPTIONAL,
-                'Is this a count query',
+                'Is this a count query.',
                 false
             )
         ;
@@ -115,12 +118,16 @@ class Query extends Command
         } else {
             $this->setResourcesAndClasses($mlsConfigurationArray['resources'][$this->getResourceAlias()]);
         }
+
+        $this->setStandardNames($mlsConfigurationArray['standard_names'] ?? false);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->getPhretsSession()->Login();
         foreach ($this->getResourcesAndClasses()['classes'] as $class) {
+            $output->writeln('Resource: ' . $this->getResourcesAndClasses()['resource']);
+            $output->writeln('Class: ' . $class);
             do {
                 $results = $this->getPhretsSession()->Search(
                     $this->getResourcesAndClasses()['resource'],
@@ -130,12 +137,19 @@ class Query extends Command
                         'Format' => 'COMPACT-DECODED',
                         'Offset' => $input->getOption(self::OPTION_OFFSET),
                         'Limit' => $input->getOption(self::OPTION_LIMIT),
+                        'Count' => $input->getOption(self::OPTION_COUNT) ? 2 : 1,
+                        'StandardNames' => $this->isStandardNames() ? 1 : 0,
                         // @todo standardnames
                     ]
                 );
-                var_export($results->toArray());
+                if ($input->getOption(self::OPTION_COUNT)) {
+                    $output->writeln('Count: ' . $results->getTotalResultsCount());
+                    break;
+                } else {
+                    $output->write(var_export($results->toArray(), true));
+                }
             } while (count($results) > $input->getOption(self::OPTION_LIMIT));
-
+            $output->writeln('');
         }
         $this->getPhretsSession()->Disconnect();
         return Command::SUCCESS;
@@ -197,6 +211,26 @@ class Query extends Command
         }
 
         $this->resources_and_classes = $resources_and_classes;
+
+        return $this;
+    }
+
+    private function isStandardNames(): bool
+    {
+        if ($this->standard_names === null) {
+            throw new \LogicException('Query standard_names has not been set.');
+        }
+
+        return $this->standard_names;
+    }
+
+    private function setStandardNames(bool $standard_names): self
+    {
+        if ($this->standard_names !== null) {
+            throw new \LogicException('Query standard_names already set.');
+        }
+
+        $this->standard_names = $standard_names;
 
         return $this;
     }
