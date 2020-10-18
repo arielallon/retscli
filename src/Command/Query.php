@@ -124,7 +124,7 @@ class Query extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->getPhretsSession()->Login();
+        $this->phretsLogin();
         foreach ($this->getResourcesAndClasses()['classes'] as $class) {
             $output->writeln('Resource: ' . $this->getResourcesAndClasses()['resource']);
             $output->writeln('Class: ' . $class);
@@ -139,7 +139,6 @@ class Query extends Command
                         'Limit' => $input->getOption(self::OPTION_LIMIT),
                         'Count' => $input->getOption(self::OPTION_COUNT) ? 2 : 1,
                         'StandardNames' => $this->isStandardNames() ? 1 : 0,
-                        // @todo standardnames
                     ]
                 );
                 if ($input->getOption(self::OPTION_COUNT)) {
@@ -153,6 +152,18 @@ class Query extends Command
         }
         $this->getPhretsSession()->Disconnect();
         return Command::SUCCESS;
+    }
+
+    private function phretsLogin(): self
+    {
+        // Some RETS servers inexplicably fail on the first login but succeed if you try again.
+        try {
+            $this->getPhretsSession()->Login();
+        } catch (\Exception $e) {
+            $this->getPhretsSession()->Login();
+        }
+
+        return $this;
     }
 
     private function getPhretsSession(): \PHRETS\Session

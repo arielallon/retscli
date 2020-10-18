@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ArielAllon\RetsCli\PHRETS;
 
+use ArielAllon\RetsCli\Logger;
+
 class SessionBuilder implements SessionBuilderInterface
 {
     /** @var ?string */
@@ -52,7 +54,9 @@ class SessionBuilder implements SessionBuilderInterface
         if ($this->hasOptionHttpAuthenticationMethod()) {
             $phretsConfiguration->setHttpAuthenticationMethod($this->getOptionHttpAuthenticationMethod());
         }
-        return new \PHRETS\Session($phretsConfiguration);
+        $phretsSession = new \PHRETS\Session($phretsConfiguration);
+        $phretsSession->setLogger((new Logger\Logger())->getLogger());
+        return $phretsSession;
     }
 
     public function fromConfigurationArray(array $cofigurationArray) : \PHRETS\Session
