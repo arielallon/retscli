@@ -22,6 +22,7 @@ class Query extends Command
     private const OPTION_OFFSET = 'offset';
     private const OPTION_LIMIT = 'limit';
     private const OPTION_COUNT = 'count';
+    private const OPTION_SELECT = 'select';
 
     protected static $defaultName = 'query';
 
@@ -90,6 +91,13 @@ class Query extends Command
                 'Is this a count query.',
                 false
             )
+            ->addOption(
+                self::OPTION_SELECT,
+                's',
+                InputOption::VALUE_OPTIONAL,
+                'Specific fields to select. Comma-separated SystemNames.',
+                null
+            )
         ;
     }
 
@@ -133,13 +141,7 @@ class Query extends Command
                     $this->getResourcesAndClasses()['resource'],
                     $class,
                     $input->getArgument(self::ARGUMENT_QUERY),
-                    [
-                        'Format' => 'COMPACT-DECODED',
-                        'Offset' => $input->getOption(self::OPTION_OFFSET),
-                        'Limit' => $input->getOption(self::OPTION_LIMIT),
-                        'Count' => $input->getOption(self::OPTION_COUNT) ? 2 : 1,
-                        'StandardNames' => $this->isStandardNames() ? 1 : 0,
-                    ]
+                    $this->getQueryExtras($input)
                 );
                 if ($input->getOption(self::OPTION_COUNT)) {
                     $output->writeln('Count: ' . $results->getTotalResultsCount());
@@ -164,6 +166,21 @@ class Query extends Command
         }
 
         return $this;
+    }
+
+    private function getQueryExtras(InputInterface $input): array
+    {
+        $extras = [
+            'Format' => 'COMPACT-DECODED',
+            'Offset' => $input->getOption(self::OPTION_OFFSET),
+            'Limit' => $input->getOption(self::OPTION_LIMIT),
+            'Count' => $input->getOption(self::OPTION_COUNT) ? 2 : 1,
+            'StandardNames' => $this->isStandardNames() ? 1 : 0,
+        ];
+        if (!empty($input->getOption(self::OPTION_SELECT))) {
+            $extras['Select'] = $input->getOption(self::OPTION_SELECT);
+        }
+        return $extras;
     }
 
     private function getPhretsSession(): \PHRETS\Session
