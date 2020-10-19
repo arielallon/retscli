@@ -4,8 +4,11 @@ declare(strict_types=1);
 namespace ArielAllon\RetsCli\Command;
 
 use ArielAllon\RetsCli\Configuration;
+use ArielAllon\RetsCli\Output\ListingsCsv;
+use ArielAllon\RetsCli\Output\StrategyInterface;
 use ArielAllon\RetsCli\PHRETS;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -17,11 +20,16 @@ class Query extends Command
     private const ARGUMENT_QUERY = 'query';
     private const ARGUMENT_RESOURCE_ALIAS = 'resource_alias';
 
-    private const OPTION_RESOURCE = 'resource';
+    private const OPTION_RESOURCE = self::KEY_RESOURCE;
     private const OPTION_CLASS = 'class';
     private const OPTION_OFFSET = 'offset';
     private const OPTION_LIMIT = 'limit';
     private const OPTION_COUNT = 'count';
+    private const OPTION_SELECT = 'select';
+    private const OPTION_OUTPUT = 'output';
+
+    private const KEY_RESOURCE = 'resource';
+    private const KEY_CLASSES = 'classes';
 
     protected static $defaultName = 'query';
 
@@ -86,72 +94,140 @@ class Query extends Command
             ->addOption(
                 self::OPTION_COUNT,
                 'C',
+                InputOption::VALUE_NONE,
+                'Is this a count query.'
+            )
+            ->addOption(
+                self::OPTION_SELECT,
+                's',
                 InputOption::VALUE_OPTIONAL,
-                'Is this a count query.',
-                false
+                'Specific fields to select. Comma-separated SystemNames.',
+                null
+            )
+            ->addOption(
+                self::OPTION_OUTPUT,
+                'O',
+                InputOption::VALUE_OPTIONAL,
+                'Specifies the output file for the data. Current possibilities: csv',
+                null
             )
         ;
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
     {
+        $this->validateOptionsCombinations($input, $output);
+
         $mlsConfigurationArray = (new Configuration\FromYaml())->getConfigurationByKey($input->getArgument(self::ARGUMENT_KEY));
 
-        $sessionBuilder = new PHRETS\SessionBuilder(); // @todo move to Di
-        $phretsSession = $sessionBuilder->fromConfigurationArray($mlsConfigurationArray);
-        $this->setPhretsSession($phretsSession);
+        $this->setPhretsSession((new PHRETS\SessionBuilder())->fromConfigurationArray($mlsConfigurationArray))
+             ->setResourceAlias($input->getArgument(self::ARGUMENT_RESOURCE_ALIAS))
+             ->initializeResourcesAndClasses($input, $mlsConfigurationArray)
+             ->setStandardNames($mlsConfigurationArray['standard_names'] ?? false);
+    }
 
-        $this->setResourceAlias($input->getArgument(self::ARGUMENT_RESOURCE_ALIAS));
+    protected function execute(InputInterface $input, OutputInterface $output)
+    {
+        $this->phretsLogin();
+        foreach ($this->getResourcesAndClasses()[self::KEY_CLASSES] as $class) {
+            $resource =  $this->getResourcesAndClasses()[self::KEY_RESOURCE];
+            $output->writeln('Resource: ' . $resource);
+            $output->writeln('Class: ' . $class);
 
-        $specificResource = $input->getOption(self::OPTION_RESOURCE);
-        $specificClass = $input->getOption(self::OPTION_CLASS);
-        if ($specificResource === null xor $specificClass === null) {
+            $dataOutput = $this->getOutputStrategyFromInput($input);
+            if ($dataOutput !== null) {
+                $dataOutput->setMlsKey($input->getArgument(self::ARGUMENT_KEY))
+                    ->setResourceName($resource)
+                    ->setClassName($class);
+            }
+
+            $progressBar = new ProgressBar($output, (int)$input->getOption(self::OPTION_LIMIT));
+            $progressBar->setFormat('very_verbose');
+            $progressBar->start();
+
+            $offset = null;
+            do {
+                $extras = $this->getQueryExtras($input, $offset);
+
+                $results = $this->getPhretsSession()->Search(
+                    $resource,
+                    $class,
+                    $input->getArgument(self::ARGUMENT_QUERY),
+                    $extras
+                );
+
+                $progressBar->setMaxSteps($results->getTotalResultsCount());
+
+                if ($input->getOption(self::OPTION_COUNT)) {
+                    $output->writeln('Count: ' . $results->getTotalResultsCount());
+                    break;
+                } elseif ($dataOutput !== null) {
+                    $dataOutput->outputResults($results);
+                } else {
+                    $output->write(var_export($results->toArray(), true));
+                }
+
+                $count = count($results);
+                $offset += $count;
+
+                $progressBar->advance($count);
+            } while ($count >= $input->getOption(self::OPTION_LIMIT));
+
+            $progressBar->finish();
+
+            if ($dataOutput !== null) {
+                $dataOutput->complete();
+            }
+            $output->writeln('');
+        }
+        $this->getPhretsSession()->Disconnect();
+        return Command::SUCCESS;
+    }
+
+    private function getOutputStrategyFromInput(InputInterface $input): ?StrategyInterface
+    {
+        switch ($input->getOption(self::OPTION_OUTPUT)) {
+            case 'csv':
+                return new ListingsCsv();
+            default:
+                return null;
+        }
+    }
+
+    private function validateOptionsCombinations(InputInterface $input, OutputInterface $output) : self
+    {
+        if ($input->getOption(self::OPTION_RESOURCE) === null xor $input->getOption(self::OPTION_CLASS) === null) {
             throw new \RuntimeException('If a class is specified, a resource must also be specified, and vice versa');
         }
+
+        if ($input->getOption(self::OPTION_COUNT)) {
+            $warningFormat = 'Warning: %s is ignored when ' . self::OPTION_COUNT . ' is present.';
+            foreach ([self::OPTION_OFFSET, self::OPTION_LIMIT, self::OPTION_SELECT, self::OPTION_OUTPUT] as $option) {
+                if ($input->getParameterOption($option) !== false) { // @todo why doesn't this work as expected?
+                    $output->writeln(sprintf($warningFormat, $option));
+                }
+            }
+        }
+
+        return $this;
+    }
+
+    private function initializeResourcesAndClasses(InputInterface $input, array $mlsConfigurationArray) : self
+    {
+        $specificResource = $input->getOption(self::OPTION_RESOURCE);
+        $specificClass = $input->getOption(self::OPTION_CLASS);
         if ($specificResource !== null && $specificClass !== null) {
             $this->setResourcesAndClasses(
                 [
-                    'resource' => $specificResource,
-                    'classes' => [$specificClass],
+                    self::KEY_RESOURCE => $specificResource,
+                    self::KEY_CLASSES => [$specificClass],
                 ]
             );
         } else {
             $this->setResourcesAndClasses($mlsConfigurationArray['resources'][$this->getResourceAlias()]);
         }
 
-        $this->setStandardNames($mlsConfigurationArray['standard_names'] ?? false);
-    }
-
-    protected function execute(InputInterface $input, OutputInterface $output)
-    {
-        $this->phretsLogin();
-        foreach ($this->getResourcesAndClasses()['classes'] as $class) {
-            $output->writeln('Resource: ' . $this->getResourcesAndClasses()['resource']);
-            $output->writeln('Class: ' . $class);
-            do {
-                $results = $this->getPhretsSession()->Search(
-                    $this->getResourcesAndClasses()['resource'],
-                    $class,
-                    $input->getArgument(self::ARGUMENT_QUERY),
-                    [
-                        'Format' => 'COMPACT-DECODED',
-                        'Offset' => $input->getOption(self::OPTION_OFFSET),
-                        'Limit' => $input->getOption(self::OPTION_LIMIT),
-                        'Count' => $input->getOption(self::OPTION_COUNT) ? 2 : 1,
-                        'StandardNames' => $this->isStandardNames() ? 1 : 0,
-                    ]
-                );
-                if ($input->getOption(self::OPTION_COUNT)) {
-                    $output->writeln('Count: ' . $results->getTotalResultsCount());
-                    break;
-                } else {
-                    $output->write(var_export($results->toArray(), true));
-                }
-            } while (count($results) > $input->getOption(self::OPTION_LIMIT));
-            $output->writeln('');
-        }
-        $this->getPhretsSession()->Disconnect();
-        return Command::SUCCESS;
+        return $this;
     }
 
     private function phretsLogin(): self
@@ -164,6 +240,21 @@ class Query extends Command
         }
 
         return $this;
+    }
+
+    private function getQueryExtras(InputInterface $input, ?int $offset): array
+    {
+        $extras = [
+            'Format' => 'COMPACT-DECODED',
+            'Limit' => $input->getOption(self::OPTION_LIMIT),
+            'Count' => $input->getOption(self::OPTION_COUNT) ? 2 : 1,
+            'StandardNames' => $this->isStandardNames() ? 1 : 0,
+        ];
+        $extras['Offset'] = is_null($offset) ? $input->getOption(self::OPTION_OFFSET) : $offset;
+        if (!empty($input->getOption(self::OPTION_SELECT))) {
+            $extras['Select'] = $input->getOption(self::OPTION_SELECT);
+        }
+        return $extras;
     }
 
     private function getPhretsSession(): \PHRETS\Session
