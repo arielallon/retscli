@@ -10,12 +10,33 @@
   ],
   "require": {
     "php": "^7.2",
-    "neighborhoods/phrets": "^2.6.6",
-    "symfony/yaml": "^5.1",
+    "troydavisson/phrets": "2.6.2",
+    "neighborhoods/buphalo": "^1.1.0",
+    "symfony/yaml": "^4.2",
     "monolog/monolog": "^2.1",
     "symfony/console": "^5.1"
   },
   "require-dev": {
     "roave/security-advisories": "dev-master"
+  },
+  "autoload": {
+    "psr-4": {
+      "ArielAllon\\RetsCli\\": [
+        "src/",
+        "fab/"
+      ]
+    }
+  },
+  "scripts": {
+    "post-update-cmd": [
+      "@composer dump-autoload -a"
+    ],
+    "post-install-cmd": [
+      "@composer buphalo"
+    ],
+    "buphalo": [
+      "bin/fab/buphalo",
+      "@composer dump-autoload -a"
+    ]
   }
 }

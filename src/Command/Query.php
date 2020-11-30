@@ -20,7 +20,7 @@ class Query extends Command
     private const ARGUMENT_QUERY = 'query';
     private const ARGUMENT_RESOURCE_ALIAS = 'resource_alias';
 
-    private const OPTION_RESOURCE = self::KEY_RESOURCE;
+    private const OPTION_RESOURCE = 'resource';
     private const OPTION_CLASS = 'class';
     private const OPTION_OFFSET = 'offset';
     private const OPTION_LIMIT = 'limit';
@@ -47,7 +47,7 @@ class Query extends Command
 
     protected function configure()
     {
-        $this->setDescription('Send a Query to the RETS server')
+        $this->setDescription('Send a Search query to the RETS server')
             ->addArgument(
                 self::ARGUMENT_KEY,
                 InputArgument::REQUIRED,
