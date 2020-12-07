@@ -159,7 +159,6 @@ class Query extends Command
                 $progressBar->setMaxSteps($results->getTotalResultsCount());
 
                 if ($input->getOption(self::OPTION_COUNT)) {
-                    $output->writeln('Count: ' . $results->getTotalResultsCount());
                     break;
                 } elseif ($dataOutput !== null) {
                     $dataOutput->outputResults($results);
@@ -174,6 +173,10 @@ class Query extends Command
             } while ($count >= $input->getOption(self::OPTION_LIMIT));
 
             $progressBar->finish();
+
+            if ($input->getOption(self::OPTION_COUNT)) {
+                $output->writeln("\nCount: " . $results->getTotalResultsCount());
+            }
 
             if ($dataOutput !== null) {
                 $dataOutput->complete();
