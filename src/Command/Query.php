@@ -27,11 +27,18 @@ class Query extends Command
     private const OPTION_COUNT = 'count';
     private const OPTION_SELECT = 'select';
     private const OPTION_OUTPUT = 'output';
+    private const OPTION_NO_PROGRESS_BAR = 'no-progress-bar';
 
     private const KEY_RESOURCE = 'resource';
     private const KEY_CLASSES = 'classes';
 
     protected static $defaultName = 'query';
+
+    /** @var InputInterface */
+    private $input;
+
+    /** @var OutputInterface */
+    private $output;
 
     /** @var \PHRETS\Session */
     private $phrets_session;
@@ -44,6 +51,9 @@ class Query extends Command
 
     /** @var bool */
     private $standard_names;
+
+    /** @var ProgressBar */
+    private $progress_bar;
 
     protected function configure()
     {
@@ -111,12 +121,21 @@ class Query extends Command
                 'Specifies the output file for the data. Current possibilities: csv',
                 null
             )
+            ->addOption(
+                self::OPTION_NO_PROGRESS_BAR,
+                'Q',
+                InputOption::VALUE_NONE,
+                'Turns off progress bar in output'
+            )
         ;
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
     {
         $this->validateOptionsCombinations($input, $output);
+
+        $this->setInput($input);
+        $this->setOutput($output);
 
         $mlsConfigurationArray = (new Configuration\FromYaml())->getConfigurationByKey($input->getArgument(self::ARGUMENT_KEY));
 
@@ -126,6 +145,10 @@ class Query extends Command
              ->setStandardNames($mlsConfigurationArray['standard_names'] ?? false);
     }
 
+    /**
+     * $input and $output will generally be used from the getters, and were set in initialize.
+     * they are still in the signature as required by the Command parent class
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->phretsLogin();
@@ -134,20 +157,19 @@ class Query extends Command
             $output->writeln('Resource: ' . $resource);
             $output->writeln('Class: ' . $class);
 
-            $dataOutput = $this->getOutputStrategyFromInput($input);
+            $dataOutput = $this->getOutputStrategy();
             if ($dataOutput !== null) {
                 $dataOutput->setMlsKey($input->getArgument(self::ARGUMENT_KEY))
                     ->setResourceName($resource)
                     ->setClassName($class);
             }
 
-            $progressBar = new ProgressBar($output, (int)$input->getOption(self::OPTION_LIMIT));
-            $progressBar->setFormat('very_verbose');
-            $progressBar->start();
+            $this->initProgressBar();
+            $this->startProgressBar();
 
             $offset = null;
             do {
-                $extras = $this->getQueryExtras($input, $offset);
+                $extras = $this->getQueryExtras($offset);
 
                 $results = $this->getPhretsSession()->Search(
                     $resource,
@@ -156,7 +178,7 @@ class Query extends Command
                     $extras
                 );
 
-                $progressBar->setMaxSteps($results->getTotalResultsCount());
+                $this->setProgressBarMaxSteps($results->getTotalResultsCount());
 
                 if ($input->getOption(self::OPTION_COUNT)) {
                     break;
@@ -169,10 +191,10 @@ class Query extends Command
                 $count = count($results);
                 $offset += $count;
 
-                $progressBar->advance($count);
+                $this->advanceProgressBar($count);
             } while ($count >= $input->getOption(self::OPTION_LIMIT));
 
-            $progressBar->finish();
+            $this->finishProgressBar();
 
             if ($input->getOption(self::OPTION_COUNT)) {
                 $output->writeln("\nCount: " . $results->getTotalResultsCount());
@@ -187,14 +209,56 @@ class Query extends Command
         return Command::SUCCESS;
     }
 
-    private function getOutputStrategyFromInput(InputInterface $input): ?StrategyInterface
+    private function getOutputStrategy(): ?StrategyInterface
     {
-        switch ($input->getOption(self::OPTION_OUTPUT)) {
+        switch ($this->getInput()->getOption(self::OPTION_OUTPUT)) {
             case 'csv':
                 return new ListingsCsv();
             default:
                 return null;
         }
+    }
+
+    private function initProgressBar() : self
+    {
+        if (isset($this->progress_bar)) {
+            throw new \LogicException('Query resources_and_classes already set.');
+        }
+        $this->progress_bar = new ProgressBar($this->getOutput(), (int)$this->getInput()->getOption(self::OPTION_LIMIT));
+        $this->progress_bar->setFormat('very_verbose');
+        return $this;
+    }
+
+    private function startProgressBar() : self
+    {
+        if (!$this->getInput()->getOption(self::OPTION_NO_PROGRESS_BAR)) {
+            $this->getProgressBar()->start();
+        }
+        return $this;
+    }
+
+    private function setProgressBarMaxSteps(int $maxSteps) : self
+    {
+        if (!$this->getInput()->getOption(self::OPTION_NO_PROGRESS_BAR)) {
+            $this->getProgressBar()->setMaxSteps($maxSteps);
+        }
+        return $this;
+    }
+
+    private function advanceProgressBar(int $count) : self
+    {
+        if (!$this->getInput()->getOption(self::OPTION_NO_PROGRESS_BAR)) {
+            $this->getProgressBar()->advance($count);
+        }
+        return $this;
+    }
+
+    private function finishProgressBar() : self
+    {
+        if (!$this->getInput()->getOption(self::OPTION_NO_PROGRESS_BAR)) {
+            $this->getProgressBar()->finish();
+        }
+        return $this;
     }
 
     private function validateOptionsCombinations(InputInterface $input, OutputInterface $output) : self
@@ -245,8 +309,9 @@ class Query extends Command
         return $this;
     }
 
-    private function getQueryExtras(InputInterface $input, ?int $offset): array
+    private function getQueryExtras(?int $offset): array
     {
+        $input = $this->getInput();
         $extras = [
             'Format' => 'COMPACT-DECODED',
             'Limit' => $input->getOption(self::OPTION_LIMIT),
@@ -258,6 +323,46 @@ class Query extends Command
             $extras['Select'] = $input->getOption(self::OPTION_SELECT);
         }
         return $extras;
+    }
+
+    private function getInput(): InputInterface
+    {
+        if ($this->input === null) {
+            throw new \LogicException('Query input has not been set.');
+        }
+
+        return $this->input;
+    }
+
+    private function setInput(InputInterface $input): self
+    {
+        if ($this->input !== null) {
+            throw new \LogicException('Query input already set.');
+        }
+
+        $this->input = $input;
+
+        return $this;
+    }
+
+    private function getOutput(): OutputInterface
+    {
+        if ($this->output === null) {
+            throw new \LogicException('Query output has not been set.');
+        }
+
+        return $this->output;
+    }
+
+    private function setOutput(OutputInterface $output): self
+    {
+        if ($this->output !== null) {
+            throw new \LogicException('Query output already set.');
+        }
+
+        $this->output = $output;
+
+        return $this;
     }
 
     private function getPhretsSession(): \PHRETS\Session
@@ -338,5 +443,14 @@ class Query extends Command
         $this->standard_names = $standard_names;
 
         return $this;
+    }
+
+    private function getProgressBar(): ProgressBar
+    {
+        if ($this->progress_bar === null) {
+            throw new \LogicException('Query progress_bar has not been set.');
+        }
+
+        return $this->progress_bar;
     }
 }
