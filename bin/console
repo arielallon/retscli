@@ -10,7 +10,7 @@ define('RETSCLI_ROOT_DIR', __DIR__ . '/../');
 
 $application = new Application();
 
-// @todo
 $application->add(new ArielAllon\RetsCli\Command\Query());
+$application->add(new ArielAllon\RetsCli\Command\ObjectQuery());
 
 $application->run();
