@@ -92,14 +92,14 @@ class ObjectQuery extends Command
             )
             ->addOption(
                 self::OPTION_BY_LOCATION,
-                'l',
+                null,
                 InputOption::VALUE_NONE,
                 'Will request the locations (URLs) of the media, otherwise requests binaries. Overrides value in config file.',
                 null
             )
             ->addOption(
                 self::OPTION_SAVE_BINARIES,
-                'b',
+                null,
                 InputOption::VALUE_NONE,
                 'Save the binaries from the response.',
                 null
@@ -213,7 +213,7 @@ class ObjectQuery extends Command
 
     private function getOptionValue(string $cliOptionKey, string $configurationPathPipeNotation)
     {
-        $cliValue = $this->getInput()->getOption($cliOptionKey);
+        $cliValue = $this->getInput()->hasParameterOption($cliOptionKey) ? $this->getInput()->getOption($cliOptionKey) : null;
         if ($cliValue !== null) {
             return $cliValue;
         } else {
