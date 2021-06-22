@@ -14,7 +14,8 @@
     "neighborhoods/buphalo": "^1.1.0",
     "symfony/yaml": "^4.2",
     "monolog/monolog": "^2.1",
-    "symfony/console": "^5.1"
+    "symfony/console": "^5.1",
+    "ext-json": "*"
   },
   "require-dev": {
     "roave/security-advisories": "dev-master"

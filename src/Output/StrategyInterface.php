@@ -6,9 +6,8 @@ namespace ArielAllon\RetsCli\Output;
 
 interface StrategyInterface
 {
+    public const FILEPATH = RETSCLI_ROOT_DIR . DIRECTORY_SEPARATOR . 'output' . DIRECTORY_SEPARATOR;
+
     public function setMlsKey(string $mls_key): StrategyInterface;
-    public function setResourceName(string $resource_name): StrategyInterface;
-    public function setClassName(string $class_name): StrategyInterface;
-    public function outputResults(\PHRETS\Models\Search\Results $results) : StrategyInterface;
-    public function complete() : StrategyInterface;
+    public function outputResults(\ArrayAccess $results) : StrategyInterface;
 }

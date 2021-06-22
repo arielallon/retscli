@@ -8,9 +8,6 @@ use PHRETS\Models\Search\Results;
 
 class ListingsCsv implements ListingsCsvInterface
 {
-    private const FILENAME_FORMAT = '%s_%s_%s_%s.csv';
-    private CONST FILEPATH = RETSCLI_ROOT_DIR . DIRECTORY_SEPARATOR . 'output' . DIRECTORY_SEPARATOR;
-
     /** @var string */
     private $mls_key;
 
@@ -40,7 +37,11 @@ class ListingsCsv implements ListingsCsvInterface
             );
     }
 
-    public function outputResults(Results $results): StrategyInterface
+    /**
+     * @param Results $results
+     * @return $this
+     */
+    public function outputResults($results): self
     {
         if (!$this->getIsHeaderWritten()) {
             $this->writeHeader($results);
@@ -61,7 +62,7 @@ class ListingsCsv implements ListingsCsvInterface
         return $this;
     }
 
-    public function complete() : StrategyInterface
+    public function complete() : self
     {
         fclose($this->getFile());
         return $this;
@@ -96,7 +97,7 @@ class ListingsCsv implements ListingsCsvInterface
         return $this->resource_name;
     }
 
-    public function setResourceName(string $resource_name): StrategyInterface
+    public function setResourceName(string $resource_name): self
     {
         if ($this->resource_name !== null) {
             throw new \LogicException('ListingsCsv resource_name already set.');
@@ -116,7 +117,7 @@ class ListingsCsv implements ListingsCsvInterface
         return $this->class_name;
     }
 
-    public function setClassName(string $class_name): StrategyInterface
+    public function setClassName(string $class_name): self
     {
         if ($this->class_name !== null) {
             throw new \LogicException('ListingsCsv class_name already set.');

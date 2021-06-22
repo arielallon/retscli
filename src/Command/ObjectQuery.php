@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ArielAllon\RetsCli\Command;
 
 use ArielAllon\RetsCli\Configuration;
+use ArielAllon\RetsCli\Output\MediaBinary;
 use ArielAllon\RetsCli\PHRETS;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -25,9 +26,6 @@ class ObjectQuery extends Command
     private const OPTION_BY_LOCATION = 'by_location';
     private const OPTION_SAVE_BINARIES = 'save_binaries';
     private const OPTION_PHP_MEMORY_LIMIT = 'php_memory_limit';
-
-    private const KEY_RESOURCE = 'resource';
-    private const KEY_CLASSES = 'classes';
 
     protected static $defaultName = 'objectquery';
 
@@ -137,12 +135,6 @@ class ObjectQuery extends Command
         $resource = $this->getResource();
         $output->writeln('Resource: ' . $resource);
 
-//        $dataOutput = $this->getOutputStrategyFromInput($input); // @todo
-//        if ($dataOutput !== null) {
-//            $dataOutput->setMlsKey($input->getArgument(self::ARGUMENT_KEY))
-//                ->setResourceName($resource);
-//        }
-
         $offset = null;
 
         $results = $this->getPhretsSession()->GetObject(
@@ -153,29 +145,33 @@ class ObjectQuery extends Command
             $this->getOptionValue(self::OPTION_BY_LOCATION, "resources|{$this->getResourceAlias()}|object|by_location"),
         );
 
-        // if ($dataOutput !== null) {
-        //     $dataOutput->outputResults($results);
-        // } else {
-            $this->outputResultsToStdOut($results, $output, $input->getOption(self::OPTION_BY_LOCATION));
-        // }
+        $this->outputResults($results);
 
-        $count = count($results);
-        $offset += $count;
-
-
-        // if ($dataOutput !== null) {
-        //     $dataOutput->complete();
-        // }
         $output->writeln('');
         $this->getPhretsSession()->Disconnect();
         return Command::SUCCESS;
     }
 
-    private function outputResultsToStdOut(
-        \Illuminate\Support\Collection $results,
-        OutputInterface $output,
-        bool $includeLocation
-    ): void {
+    private function outputResults(\Illuminate\Support\Collection $results)
+    {
+        $this->outputResultsToStdOut($results);
+        if ($this->getInput()->getOption(self::OPTION_SAVE_BINARIES)) {
+            $mediaBinaryOutputer = new MediaBinary();
+            $mediaBinaryOutputer->setMlsKey($this->getInput()->getArgument(self::ARGUMENT_KEY))
+                ->setContentId($this->getInput()->getArgument(self::ARGUMENT_ID));
+            $mediaBinaryOutputer->outputResults($results);
+        }
+    }
+
+    private function outputResultsToStdOut(\Illuminate\Support\Collection $results): void
+    {
+        $includeLocation = $this->getOptionValue(
+            self::OPTION_BY_LOCATION,
+            "resources|{$this->getResourceAlias()}|object|by_location"
+        );
+
+        $resultsForOutput = [];
+
         /** @var \PHRETS\Models\BaseObject $result */
         foreach ($results as $result) {
             $resultArray = [
@@ -187,8 +183,9 @@ class ObjectQuery extends Command
             if ((int)$includeLocation === 1) {
                 $resultArray['Location'] = $result->getLocation();
             }
-            $output->write(var_export($resultArray, true));
+            $resultsForOutput[] = $resultArray;
         }
+        $this->getOutput()->write(json_encode($resultsForOutput, JSON_PRETTY_PRINT));
     }
 
     private function initializeResource(): self
