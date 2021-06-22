@@ -10,7 +10,7 @@
   ],
   "require": {
     "php": "^7.2",
-    "troydavisson/phrets": "2.6.2",
+    "neighborhoods/phrets": "2.6.7",
     "neighborhoods/buphalo": "^1.1.0",
     "symfony/yaml": "^4.2",
     "monolog/monolog": "^2.1",

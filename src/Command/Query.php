@@ -221,9 +221,9 @@ class Query extends Command
 
     private function initProgressBar() : self
     {
-        if (isset($this->progress_bar)) {
-            throw new \LogicException('Query resources_and_classes already set.');
-        }
+    //     if (isset($this->progress_bar)) {
+    //         throw new \LogicException('Query resources_and_classes already set.');
+    //     }
         $this->progress_bar = new ProgressBar($this->getOutput(), (int)$this->getInput()->getOption(self::OPTION_LIMIT));
         $this->progress_bar->setFormat('very_verbose');
         return $this;

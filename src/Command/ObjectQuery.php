@@ -24,6 +24,7 @@ class ObjectQuery extends Command
     private const OPTION_OBJECT_ID = 'object_id';
     private const OPTION_BY_LOCATION = 'by_location';
     private const OPTION_SAVE_BINARIES = 'save_binaries';
+    private const OPTION_PHP_MEMORY_LIMIT = 'php_memory_limit';
 
     private const KEY_RESOURCE = 'resource';
     private const KEY_CLASSES = 'classes';
@@ -97,11 +98,23 @@ class ObjectQuery extends Command
                 'b',
                 InputOption::VALUE_NONE,
                 'Save the binaries from the response.'
-            );
+            )
+            ->addOption(
+                self::OPTION_PHP_MEMORY_LIMIT,
+                'm',
+                InputOption::VALUE_OPTIONAL,
+                'Override the default php memory_limit value',
+                null
+            )
+            ;
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
     {
+        if ($input->getOption(self::OPTION_PHP_MEMORY_LIMIT) !== null) {
+            ini_set('memory_limit', $input->getOption(self::OPTION_PHP_MEMORY_LIMIT));
+        }
+
         $mlsConfigurationArray = (new Configuration\FromYaml())->getConfigurationByKey(
             $input->getArgument(self::ARGUMENT_KEY)
         );
@@ -133,19 +146,19 @@ class ObjectQuery extends Command
             $input->getOption(self::OPTION_BY_LOCATION) // @todo allow default to yml
         );
 
-        if ($dataOutput !== null) {
-            $dataOutput->outputResults($results);
-        } else {
+        // if ($dataOutput !== null) {
+        //     $dataOutput->outputResults($results);
+        // } else {
             $this->outputResultsToStdOut($results, $output, $input->getOption(self::OPTION_BY_LOCATION));
-        }
+        // }
 
         $count = count($results);
         $offset += $count;
 
 
-        if ($dataOutput !== null) {
-            $dataOutput->complete();
-        }
+        // if ($dataOutput !== null) {
+        //     $dataOutput->complete();
+        // }
         $output->writeln('');
         $this->getPhretsSession()->Disconnect();
         return Command::SUCCESS;

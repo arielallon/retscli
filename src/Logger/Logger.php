@@ -6,7 +6,7 @@ namespace ArielAllon\RetsCli\Logger;
 
 class Logger implements LoggerInterface
 {
-    private CONST LOGFILENAME = 'retcli.log';
+    private CONST LOGFILENAME = 'retscli.log';
     private CONST LOGFILEPATH = RETSCLI_ROOT_DIR . DIRECTORY_SEPARATOR;
 
     /** @var \Psr\Log\LoggerInterface */
@@ -14,7 +14,7 @@ class Logger implements LoggerInterface
 
     public function __construct()
     {
-        $logger = new \Monolog\Logger('retcli');
+        $logger = new \Monolog\Logger('retscli');
         $logger->pushHandler(new \Monolog\Handler\StreamHandler(self::LOGFILEPATH . self::LOGFILENAME));
         $this->setLogger($logger);
     }
