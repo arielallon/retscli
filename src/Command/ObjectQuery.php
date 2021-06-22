@@ -210,7 +210,7 @@ class ObjectQuery extends Command
 
     private function getOptionValue(string $cliOptionKey, string $configurationPathPipeNotation)
     {
-        $cliValue = $this->getInput()->hasParameterOption($cliOptionKey) ? $this->getInput()->getOption($cliOptionKey) : null;
+        $cliValue = $this->getInput()->hasParameterOption('--' . $cliOptionKey) ? $this->getInput()->getOption($cliOptionKey) : null;
         if ($cliValue !== null) {
             return $cliValue;
         } else {
