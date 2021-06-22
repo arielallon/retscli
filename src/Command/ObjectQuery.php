@@ -31,6 +31,10 @@ class ObjectQuery extends Command
 
     protected static $defaultName = 'objectquery';
 
+    private InputInterface $input;
+    private OutputInterface $output;
+    private array $mls_configuration;
+
     /** @var \PHRETS\Session */
     private $phrets_session;
 
@@ -97,7 +101,8 @@ class ObjectQuery extends Command
                 self::OPTION_SAVE_BINARIES,
                 'b',
                 InputOption::VALUE_NONE,
-                'Save the binaries from the response.'
+                'Save the binaries from the response.',
+                null
             )
             ->addOption(
                 self::OPTION_PHP_MEMORY_LIMIT,
@@ -115,13 +120,15 @@ class ObjectQuery extends Command
             ini_set('memory_limit', $input->getOption(self::OPTION_PHP_MEMORY_LIMIT));
         }
 
-        $mlsConfigurationArray = (new Configuration\FromYaml())->getConfigurationByKey(
+        $this->setInput($input);
+        $this->setOutput($output);
+        $this->setMlsConfiguration((new Configuration\FromYaml())->getConfigurationByKey(
             $input->getArgument(self::ARGUMENT_KEY)
-        );
+        ));
 
-        $this->setPhretsSession((new PHRETS\SessionBuilder())->fromConfigurationArray($mlsConfigurationArray))
+        $this->setPhretsSession((new PHRETS\SessionBuilder())->fromConfigurationArray($this->getMlsConfiguration()))
             ->setResourceAlias($input->getArgument(self::ARGUMENT_RESOURCE_ALIAS))
-            ->initializeResource($input, $mlsConfigurationArray);
+            ->initializeResource();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -140,10 +147,10 @@ class ObjectQuery extends Command
 
         $results = $this->getPhretsSession()->GetObject(
             $resource,
-            'Photo', //$input->getOption(self::OPTION_FIELD), // @todo allow defaulting to yml
+            $this->getOptionValue(self::OPTION_FIELD, "resources|{$this->getResourceAlias()}|object|field"),
             $input->getArgument(self::ARGUMENT_ID),
             $input->getOption(self::OPTION_OBJECT_ID),
-            $input->getOption(self::OPTION_BY_LOCATION) // @todo allow default to yml
+            $this->getOptionValue(self::OPTION_BY_LOCATION, "resources|{$this->getResourceAlias()}|object|by_location"),
         );
 
         // if ($dataOutput !== null) {
@@ -184,15 +191,11 @@ class ObjectQuery extends Command
         }
     }
 
-    private function initializeResource(InputInterface $input, array $mlsConfigurationArray): self
+    private function initializeResource(): self
     {
-        $specificResource = $input->getOption(self::OPTION_RESOURCE);
-        if ($specificResource !== null) {
-            $this->setResource($specificResource);
-        } else {
-            $this->setResource($mlsConfigurationArray['resources'][$this->getResourceAlias()]['resource']);
-        }
-
+        $this->setResource(
+            $this->getOptionValue(self::OPTION_RESOURCE, "resources|{$this->getResourceAlias()}|resource")
+        );
         return $this;
     }
 
@@ -208,11 +211,72 @@ class ObjectQuery extends Command
         return $this;
     }
 
+    private function getOptionValue(string $cliOptionKey, string $configurationPathPipeNotation)
+    {
+        $cliValue = $this->getInput()->getOption($cliOptionKey);
+        if ($cliValue !== null) {
+            return $cliValue;
+        } else {
+            $configurationPathSteps = explode('|', $configurationPathPipeNotation);
+            $configurationStep = $this->getMlsConfiguration();
+            foreach ($configurationPathSteps as $nextStep) {
+                $configurationStep = $configurationStep[$nextStep];
+            }
+            return $configurationStep;
+        }
+    }
+
+    private function getInput(): InputInterface
+    {
+        return $this->input; // Will throw if uninitialized
+    }
+
+    private function setInput(InputInterface $input): self
+    {
+        try {
+            $this->input; // Attempt to read
+        } catch (\Error $e) {
+            $this->input = $input; // Variable hasn't been initialized
+            return $this;
+        }
+    }
+
+    private function getOutput(): OutputInterface
+    {
+        return $this->output; // Will throw if uninitialized
+    }
+
+    private function setOutput(OutputInterface $output): self
+    {
+        try {
+            $this->output; // Attempt to read
+        } catch (\Error $e) {
+            $this->output = $output; // Variable hasn't been initialized
+            return $this;
+        }
+    }
+
+
+    private function getMlsConfiguration(): array
+    {
+        return $this->mls_configuration; // Will throw if uninitialized
+    }
+
+    private function setMlsConfiguration(array $mls_configuration): self
+    {
+        try {
+            $this->mls_configuration; // Attempt to read
+        } catch (\Error $e) {
+            $this->mls_configuration = $mls_configuration; // Variable hasn't been initialized
+            return $this;
+        }
+    }
+
 
     private function getPhretsSession(): \PHRETS\Session
     {
         if ($this->phrets_session === null) {
-            throw new \LogicException('Query phretsSession has not been set.');
+            throw new \LogicException('ObjectQuery phretsSession has not been set.');
         }
 
         return $this->phrets_session;
@@ -221,7 +285,7 @@ class ObjectQuery extends Command
     private function setPhretsSession(\PHRETS\Session $phretsSession): self
     {
         if ($this->phrets_session !== null) {
-            throw new \LogicException('Query phretsSession already set.');
+            throw new \LogicException('ObjectQuery phretsSession already set.');
         }
 
         $this->phrets_session = $phretsSession;
@@ -232,7 +296,7 @@ class ObjectQuery extends Command
     private function getResourceAlias(): string
     {
         if ($this->resource_alias === null) {
-            throw new \LogicException('Query resource_alias has not been set.');
+            throw new \LogicException('ObjectQuery resource_alias has not been set.');
         }
 
         return $this->resource_alias;
@@ -241,7 +305,7 @@ class ObjectQuery extends Command
     private function setResourceAlias(string $resource_alias): self
     {
         if ($this->resource_alias !== null) {
-            throw new \LogicException('Query resource_alias already set.');
+            throw new \LogicException('ObjectQuery resource_alias already set.');
         }
 
         $this->resource_alias = $resource_alias;
@@ -252,7 +316,7 @@ class ObjectQuery extends Command
     private function getResource(): string
     {
         if ($this->resource === null) {
-            throw new \LogicException('Query resource has not been set.');
+            throw new \LogicException('ObjectQuery resource has not been set.');
         }
 
         return $this->resource;
@@ -261,7 +325,7 @@ class ObjectQuery extends Command
     private function setResource(string $resource): self
     {
         if ($this->resource !== null) {
-            throw new \LogicException('Query resource already set.');
+            throw new \LogicException('ObjectQuery resource already set.');
         }
 
         $this->resource = $resource;
