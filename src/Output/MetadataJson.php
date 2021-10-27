@@ -25,7 +25,7 @@ class MetadataJson implements MetadataJsonInterface
     }
 
     /**
-     * @param \Illuminate\Support\Collection $results
+     * @param array $results
      * @return $this
      */
     public function outputResults($results): self
@@ -57,7 +57,7 @@ class MetadataJson implements MetadataJsonInterface
         return $this->file;
     }
 
-    private function setFile($file): ListingsCsvInterface
+    private function setFile($file): self
     {
         if ($this->file !== null) {
             throw new \LogicException('ListingsCsv file already set.');
