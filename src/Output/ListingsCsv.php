@@ -17,9 +17,6 @@ class ListingsCsv implements ListingsCsvInterface
     /** @var string */
     private $class_name;
 
-    /** @var string */
-    private $full_file_path;
-
     /** @var resource */
     private $file;
 
@@ -127,27 +124,6 @@ class ListingsCsv implements ListingsCsvInterface
 
         return $this;
     }
-
-    private function getFullFilePath(): string
-    {
-        if ($this->full_file_path === null) {
-            $this->setFullFilePath($this->buildFullFilePath());
-        }
-
-        return $this->full_file_path;
-    }
-
-    private function setFullFilePath(string $full_file_path): ListingsCsvInterface
-    {
-        if ($this->full_file_path !== null) {
-            throw new \LogicException('ListingsCsv full_file_path already set.');
-        }
-
-        $this->full_file_path = $full_file_path;
-
-        return $this;
-    }
-
 
     private function getFile()
     {
