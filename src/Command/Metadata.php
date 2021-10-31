@@ -1,10 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace ArielAllon\RetsCli\Command;
 
 use ArielAllon\RetsCli\Configuration;
 use ArielAllon\RetsCli\Output\MetadataJson;
+use ArielAllon\RetsCli\Output\MetadataYaml;
 use ArielAllon\RetsCli\Output\StrategyInterface;
 use ArielAllon\RetsCli\PHRETS;
 use Symfony\Component\Console\Command\Command;
@@ -81,10 +83,9 @@ class Metadata extends Command
                 self::OPTION_OUTPUT,
                 'O',
                 InputOption::VALUE_OPTIONAL,
-                'Specifies the output file for the data. Current possibilities: json',
+                'Specifies the output file for the data. Current possibilities: json, yaml',
                 null
-            )
-        ;
+            );
     }
 
     protected function initialize(InputInterface $input, OutputInterface $output)
@@ -94,7 +95,9 @@ class Metadata extends Command
         $this->setInput($input);
         $this->setOutput($output);
 
-        $mlsConfigurationArray = (new Configuration\FromYaml())->getConfigurationByKey($input->getArgument(self::ARGUMENT_KEY));
+        $mlsConfigurationArray = (new Configuration\FromYaml())->getConfigurationByKey(
+            $input->getArgument(self::ARGUMENT_KEY)
+        );
 
         $this->setPhretsSession((new PHRETS\SessionBuilder())->fromConfigurationArray($mlsConfigurationArray))
             ->setResourceAlias($input->getArgument(self::ARGUMENT_RESOURCE_ALIAS))
@@ -111,7 +114,7 @@ class Metadata extends Command
     {
         $this->phretsLogin();
         foreach ($this->getResourcesAndClasses()[self::KEY_CLASSES] as $class) {
-            $resource =  $this->getResourcesAndClasses()[self::KEY_RESOURCE];
+            $resource = $this->getResourcesAndClasses()[self::KEY_RESOURCE];
             $output->writeln('Resource: ' . $resource);
             $output->writeln('Class: ' . $class);
 
@@ -127,7 +130,9 @@ class Metadata extends Command
                     $results = $this->buildTableMetadata($resource, $class);
                     break;
                 default:
-                    throw new \RuntimeException('Type of metadata must be one of ', implode(', ', self::METADATA_TYPES));
+                    throw new \RuntimeException(
+                        'Type of metadata must be one of ', implode(', ', self::METADATA_TYPES)
+                    );
             }
 
             if ($dataOutput !== null) {
@@ -156,7 +161,7 @@ class Metadata extends Command
             foreach ($field->getXmlElements() as $element) {
                 $method = 'get' . $element;
                 if ($element === 'SystemName' || $element === 'LongName') {
-                    $output[$fieldName][$element]  = $field->$method();
+                    $output[$fieldName][$element] = $field->$method();
                 }
                 if ($element === 'LookupName') {
                     $hasLookups = !empty($field->$method());
@@ -186,28 +191,37 @@ class Metadata extends Command
         switch ($this->getInput()->getOption(self::OPTION_OUTPUT)) {
             case 'json':
                 return new MetadataJson();
+            case 'yaml':
+                return new MetadataYaml();
             default:
-                return null;
+                throw new \RuntimeException(
+                    sprintf(
+                        "Invalid output format provided: '%s'. Format must be one of: json, yaml",
+                        $this->getInput()->getOption(self::OPTION_OUTPUT)
+                    )
+                );
         }
     }
 
-    private function validateOptionsCombinations(InputInterface $input, OutputInterface $output) : self
+    private function validateOptionsCombinations(InputInterface $input, OutputInterface $output): self
     {
         if ($input->getOption(self::OPTION_RESOURCE) === null xor $input->getOption(self::OPTION_CLASS) === null) {
             throw new \RuntimeException('If a class is specified, a resource must also be specified, and vice versa');
         }
 
         if (!in_array($input->getArgument(self::ARGUMENT_TYPE), self::METADATA_TYPES)) {
-            throw new \RuntimeException(sprintf(
-                'Type of metadata must be one of [%s]',
-                implode(', ', self::METADATA_TYPES)
-                ));
+            throw new \RuntimeException(
+                sprintf(
+                    'Type of metadata must be one of [%s]',
+                    implode(', ', self::METADATA_TYPES)
+                )
+            );
         }
 
         return $this;
     }
 
-    private function initializeResourcesAndClasses(InputInterface $input, array $mlsConfigurationArray) : self
+    private function initializeResourcesAndClasses(InputInterface $input, array $mlsConfigurationArray): self
     {
         $specificResource = $input->getOption(self::OPTION_RESOURCE);
         $specificClass = $input->getOption(self::OPTION_CLASS);
