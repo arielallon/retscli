@@ -6,8 +6,8 @@ namespace ArielAllon\RetsCli\Command;
 
 use ArielAllon\RetsCli\Configuration;
 use ArielAllon\RetsCli\Output\MetadataJson;
+use ArielAllon\RetsCli\Output\MetadataStrategyInterface;
 use ArielAllon\RetsCli\Output\MetadataYaml;
-use ArielAllon\RetsCli\Output\StrategyInterface;
 use ArielAllon\RetsCli\PHRETS;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -30,9 +30,9 @@ class Metadata extends Command
     private const KEY_CLASSES = 'classes';
 
     private const METADATA_TYPES = [
-//        'info', // @todo add support
-//        'system',
-//        'classes',
+        'system',
+        'resources',
+        'classes',
         'table',
 //        'search'
     ];
@@ -122,16 +122,34 @@ class Metadata extends Command
             if ($dataOutput !== null) {
                 $dataOutput->setMlsKey($input->getArgument(self::ARGUMENT_KEY))
                     ->setResourceName($resource)
-                    ->setClassName($class);
+                    ->setClassName($class)
+                    ->setTypeName($input->getArgument(self::ARGUMENT_TYPE))
+                ;
             }
 
             switch ($input->getArgument(self::ARGUMENT_TYPE)) {
+                case 'system':
+                    // @todo this is resource+class-independent, no need to loop over those, nor include them in the filename. should also warn that those configs/params are ignored.
+                    $results = $this->buildSystemMetadata();
+                    break;
+                case 'resources':
+                    // @todo this is class-independent, no need to loop over those, nor include them in the filename. should also warn that those configs/params are ignored.
+                    $results = $this->buildResourcesMetadata($resource);
+                    break;
+                case 'classes':
+                    // @todo this is class-independent, no need to loop over those, nor include them in the filename. should also warn that those configs/params are ignored.
+                    $results = $this->buildClassesMetadata($resource);
+                    break;
                 case 'table':
                     $results = $this->buildTableMetadata($resource, $class);
                     break;
                 default:
                     throw new \RuntimeException(
-                        'Type of metadata must be one of ', implode(', ', self::METADATA_TYPES)
+                        sprintf(
+                            "Invalid metadata type provided: '%s'. Must be one of : %s",
+                            $input->getArgument(self::ARGUMENT_TYPE),
+                            implode(', ', self::METADATA_TYPES)
+                        )
                     );
             }
 
@@ -148,6 +166,21 @@ class Metadata extends Command
         }
         $this->getPhretsSession()->Disconnect();
         return Command::SUCCESS;
+    }
+
+    private function buildSystemMetadata(): \PHRETS\Models\Metadata\System
+    {
+        return $this->getPhretsSession()->GetSystemMetadata();
+    }
+
+    private function buildResourcesMetadata(string $resource)
+    {
+        return $this->getPhretsSession()->GetResourcesMetadata($resource);
+    }
+
+    private function buildClassesMetadata(string $resource)
+    {
+        return $this->getPhretsSession()->GetClassesMetadata($resource);
     }
 
     private function buildTableMetadata(string $resource, string $class): array
@@ -186,7 +219,7 @@ class Metadata extends Command
         return $output;
     }
 
-    private function getOutputStrategy(): ?StrategyInterface
+    private function getOutputStrategy(): ?MetadataStrategyInterface
     {
         switch ($this->getInput()->getOption(self::OPTION_OUTPUT)) {
             case 'json':
