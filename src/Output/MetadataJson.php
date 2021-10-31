@@ -7,6 +7,7 @@ namespace ArielAllon\RetsCli\Output;
 class MetadataJson implements MetadataJsonInterface
 {
     private string $mls_key;
+    private string $type_name;
     private string $resource_name;
     private string $class_name;
 
@@ -15,13 +16,7 @@ class MetadataJson implements MetadataJsonInterface
 
     private function buildFullFilePath() : string
     {
-        return self::FILEPATH . sprintf(
-                self::FILENAME_FORMAT,
-                $this->getMlsKey(),
-                $this->getResourceName(),
-                $this->getClassName(),
-                time()
-            );
+        return self::FILEPATH . $this->getFilenameFormatForType();
     }
 
     /**
@@ -47,6 +42,38 @@ class MetadataJson implements MetadataJsonInterface
         return $this;
     }
 
+    private function getFilenameFormatForType() : string
+    {
+        switch ($this->getTypeName()) {
+            case 'system':
+                return sprintf(
+                    self::FILENAME_FORMAT,
+                    $this->getMlsKey(),
+                    $this->getTypeName(),
+                    'all',
+                    time()
+                );
+            case 'resources':
+            case 'classes':
+                return sprintf(
+                    self::FILENAME_FORMAT,
+                    $this->getMlsKey(),
+                    $this->getTypeName(),
+                    $this->getResourceName(),
+                    time()
+                );
+            case 'table':
+                return sprintf(
+                    self::FILENAME_FORMAT,
+                    $this->getMlsKey(),
+                    $this->getTypeName(),
+                    $this->getResourceName() . '_' . $this->getClassName(),
+                    time()
+                );
+            default:
+                throw new \RuntimeException(sprintf("Invalid metadata type provided: '%s'.", $this->getTypeName()));
+        }
+    }
 
     private function getFile()
     {
@@ -117,5 +144,22 @@ class MetadataJson implements MetadataJsonInterface
         }
 
         throw new \LogicException('MetadataJson class_name is already set.');
+    }
+
+    private function getTypeName(): string
+    {
+        return $this->type_name; // Will throw if uninitialized
+    }
+
+    public function setTypeName(string $type_name): self
+    {
+        try {
+            $this->type_name; // Attempt to read
+        } catch (\Error $e) {
+            $this->type_name = $type_name; // Variable hasn't been initialized
+            return $this;
+        }
+
+        throw new \LogicException('MetadataJson type_name is already set.');
     }
 }
