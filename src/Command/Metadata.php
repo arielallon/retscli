@@ -123,8 +123,7 @@ class Metadata extends Command
                 $dataOutput->setMlsKey($input->getArgument(self::ARGUMENT_KEY))
                     ->setResourceName($resource)
                     ->setClassName($class)
-                    ->setTypeName($input->getArgument(self::ARGUMENT_TYPE))
-                ;
+                    ->setTypeName($input->getArgument(self::ARGUMENT_TYPE));
             }
 
             switch ($input->getArgument(self::ARGUMENT_TYPE)) {
@@ -189,29 +188,24 @@ class Metadata extends Command
 
         $table = $this->getPhretsSession()->GetTableMetadata($resource, $class);
         foreach ($table->all() as $fieldName => $field) {
-            $hasLookups = false;
+            $lookupFieldName = null;
             $output[$fieldName] = [];
-            foreach ($field->getXmlElements() as $element) {
-                $method = 'get' . $element;
-                if ($element === 'SystemName' || $element === 'LongName') {
-                    $output[$fieldName][$element] = $field->$method();
-                }
-                if ($element === 'LookupName') {
-                    $hasLookups = !empty($field->$method());
-                }
+            if (isset($field['SystemName'])) {
+                $output[$fieldName]['SystemName'] = $field['SystemName'];
             }
-            if ($hasLookups) {
-                $valuesCollection = $this->getPhretsSession()->GetLookupValues($resource, $fieldName);
+            if (isset($field['LongName'])) {
+                $output[$fieldName]['LongName'] = $field['LongName'];
+            }
+            if (isset($field['DataType'])) {
+                $output[$fieldName]['DataType'] = $field['DataType'];
+            }
+            if (isset($field['LookupName'])) {
+                $lookupFieldName = $field['LookupName'] ?? null;
+            }
+            if (!empty($lookupFieldName)) {
+                $valuesCollection = $this->getPhretsSession()->GetLookupValues($resource, $lookupFieldName);
                 foreach ($valuesCollection->all() as $value) {
-                    // $valueAttributes = [];
-                    foreach ($value->getXmlElements() as $element) {
-                        $method = 'get' . $element;
-                        if ($element === 'LongValue') {
-                            // $valueAttributes[$element] = $value->$method();
-                            $output[$fieldName]['Values'][] = $value->$method();
-                        }
-                    }
-                    // $metadata[$fieldName]['Values'][] = $valueAttributes;
+                    $output[$fieldName]['Values'][] = $value['LongValue'];
                 }
             }
         }
@@ -219,7 +213,8 @@ class Metadata extends Command
         return $output;
     }
 
-    private function getOutputStrategy(): ?MetadataStrategyInterface
+    private
+    function getOutputStrategy(): ?MetadataStrategyInterface
     {
         switch ($this->getInput()->getOption(self::OPTION_OUTPUT)) {
             case 'json':
@@ -236,8 +231,11 @@ class Metadata extends Command
         }
     }
 
-    private function validateOptionsCombinations(InputInterface $input, OutputInterface $output): self
-    {
+    private
+    function validateOptionsCombinations(
+        InputInterface $input,
+        OutputInterface $output
+    ): self {
         if ($input->getOption(self::OPTION_RESOURCE) === null xor $input->getOption(self::OPTION_CLASS) === null) {
             throw new \RuntimeException('If a class is specified, a resource must also be specified, and vice versa');
         }
@@ -254,8 +252,11 @@ class Metadata extends Command
         return $this;
     }
 
-    private function initializeResourcesAndClasses(InputInterface $input, array $mlsConfigurationArray): self
-    {
+    private
+    function initializeResourcesAndClasses(
+        InputInterface $input,
+        array $mlsConfigurationArray
+    ): self {
         $specificResource = $input->getOption(self::OPTION_RESOURCE);
         $specificClass = $input->getOption(self::OPTION_CLASS);
         if ($specificResource !== null && $specificClass !== null) {
@@ -272,7 +273,8 @@ class Metadata extends Command
         return $this;
     }
 
-    private function phretsLogin(): self
+    private
+    function phretsLogin(): self
     {
         // Some RETS servers inexplicably fail on the first login but succeed if you try again.
         try {
@@ -284,13 +286,16 @@ class Metadata extends Command
         return $this;
     }
 
-    private function getInput(): InputInterface
+    private
+    function getInput(): InputInterface
     {
         return $this->input; // Will throw if uninitialized
     }
 
-    private function setInput(InputInterface $input): self
-    {
+    private
+    function setInput(
+        InputInterface $input
+    ): self {
         try {
             $this->input; // Attempt to read
         } catch (\Error $e) {
@@ -301,13 +306,16 @@ class Metadata extends Command
         throw new \LogicException('Metadata input is already set.');
     }
 
-    private function getOutput(): OutputInterface
+    private
+    function getOutput(): OutputInterface
     {
         return $this->output; // Will throw if uninitialized
     }
 
-    private function setOutput(OutputInterface $output): self
-    {
+    private
+    function setOutput(
+        OutputInterface $output
+    ): self {
         try {
             $this->output; // Attempt to read
         } catch (\Error $e) {
@@ -318,13 +326,16 @@ class Metadata extends Command
         throw new \LogicException('Metadata output is already set.');
     }
 
-    private function getPhretsSession(): \PHRETS\Session
+    private
+    function getPhretsSession(): \PHRETS\Session
     {
         return $this->phrets_session; // Will throw if uninitialized
     }
 
-    private function setPhretsSession(\PHRETS\Session $phrets_session): self
-    {
+    private
+    function setPhretsSession(
+        \PHRETS\Session $phrets_session
+    ): self {
         try {
             $this->phrets_session; // Attempt to read
         } catch (\Error $e) {
@@ -335,13 +346,16 @@ class Metadata extends Command
         throw new \LogicException('Metadata phrets_session is already set.');
     }
 
-    private function getResourceAlias(): string
+    private
+    function getResourceAlias(): string
     {
         return $this->resource_alias; // Will throw if uninitialized
     }
 
-    private function setResourceAlias(string $resource_alias): self
-    {
+    private
+    function setResourceAlias(
+        string $resource_alias
+    ): self {
         try {
             $this->resource_alias; // Attempt to read
         } catch (\Error $e) {
@@ -352,13 +366,16 @@ class Metadata extends Command
         throw new \LogicException('Metadata resource_alias is already set.');
     }
 
-    private function getResourcesAndClasses(): array
+    private
+    function getResourcesAndClasses(): array
     {
         return $this->resources_and_classes; // Will throw if uninitialized
     }
 
-    private function setResourcesAndClasses(array $resources_and_classes): self
-    {
+    private
+    function setResourcesAndClasses(
+        array $resources_and_classes
+    ): self {
         try {
             $this->resources_and_classes; // Attempt to read
         } catch (\Error $e) {
@@ -369,13 +386,16 @@ class Metadata extends Command
         throw new \LogicException('Metadata resources_and_classes is already set.');
     }
 
-    private function getStandardNames(): bool
+    private
+    function getStandardNames(): bool
     {
         return $this->standard_names; // Will throw if uninitialized
     }
 
-    private function setStandardNames(bool $standard_names): self
-    {
+    private
+    function setStandardNames(
+        bool $standard_names
+    ): self {
         try {
             $this->standard_names; // Attempt to read
         } catch (\Error $e) {
@@ -385,6 +405,4 @@ class Metadata extends Command
 
         throw new \LogicException('Metadata standard_names is already set.');
     }
-
-
 }
