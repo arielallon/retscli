@@ -118,7 +118,7 @@ class Query extends Command
                 self::OPTION_OUTPUT,
                 'O',
                 InputOption::VALUE_OPTIONAL,
-                'Specifies the output file for the data. Current possibilities: csv',
+                'Specifies the output file format for the data. Current possibilities: csv',
                 null
             )
             ->addOption(

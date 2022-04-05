@@ -13,5 +13,6 @@ $application = new Application();
 $application->add(new ArielAllon\RetsCli\Command\Query());
 $application->add(new ArielAllon\RetsCli\Command\ObjectQuery());
 $application->add(new ArielAllon\RetsCli\Command\Metadata());
+$application->add(new ArielAllon\RetsCli\Command\Histogram());
 
 $application->run();
